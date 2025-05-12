@@ -1,0 +1,168 @@
+---
+title: "Trabalho aula 7 finalizado"
+author: "Guilherme Goedert"
+format: html
+editor: visual
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+
+library(WDI)
+library(ggplot2)   
+library(dplyr)
+
+options(scipen = 999)
+```
+
+## Variável
+
+A variável **"Mortes em combate"** mede o **número total de mortes causadas por conflitos armados** em um determinado país e ano.
+
+## Dados Em Painel
+
+O gráfico tem como objetivo mostrar o número de mortes em batalhas (indicador `VC.BTL.DETH`) ao longo do tempo, a partir de 1985, em diferentes países, com destaque para o **Afeganistão**, que aparece em **azul**, enquanto os demais países estão em **cinza claro** e com transparência.
+
+-   **Anos 1980s finais**: fim da ocupação soviética
+
+    -   **Década de 1990**: guerra civil.
+
+    -   **2001 em diante**: invasão liderada pelos EUA e insurgência do Talibã.
+
+    -   **2021**: retirada das tropas americanas e retomada do poder pelo Talibã.
+
+        Muitos desses pontos estão mais baixos, mostrando que, na maioria dos anos, o número de mortes em batalhas em outros países foi inferior ao do Afeganistão.
+
+        Isso reforça a ideia de que o Afeganistão foi um dos países mais afetados por conflitos armados nas últimas décadas.
+
+```{r}
+#| label: Dados em Paienl 
+#| warning: false
+#| echo: false
+
+# Baixar os dados com informações extras (inclui 'region')
+mortesembatalha <- WDI(country = 'all', indicator = 'VC.BTL.DETH', extra = TRUE)
+
+# Filtrar os dados a partir de 1985 e remover agregados
+mortesembatalha_filtrado <- mortesembatalha %>%
+  filter(year >= 1985, !region %in% c("Aggregates"))
+
+# Criar o gráfico
+graficosmorteembatalha <- ggplot(mortesembatalha_filtrado, aes(x = year, y = VC.BTL.DETH)) +
+  geom_point(data = filter(mortesembatalha_filtrado, country != "Afghanistan"),
+             color = "gray", alpha = 0.4) +
+  geom_point(data = filter(mortesembatalha_filtrado, country == "Afghanistan"),
+             color = "purple") +
+  labs(title = "Mortes em batalhas ao longo do tempo\n(a partir de 1985)",
+       x = "Ano",
+       y = "Mortes em batalhas") +
+  theme_minimal() + 
+  theme(
+    plot.title      = element_text(size = 16, face = "bold", color = "#333333"),
+    axis.title      = element_text(size = 13, face = "bold"),
+    axis.text.x     = element_blank(),   # oculta os nomes dos países para não poluir
+    axis.text.y     = element_text(size = 11, color = "#444444")
+  )
+
+print(graficosmorteembatalha)
+
+
+```
+
+## Corte Transversal
+
+Este gráfico mostra uma **comparação entre países** em relação ao número de **mortes em batalhas em 2022**, com **destaque para a Ucrânia**, que está colorida em azul, enquanto os demais países aparecem em cinza.
+
+Em 2022, a Ucrânia foi fortemente impactada pela invasão russa, iniciada em fevereiro, o que explica **altos números de mortes em batalhas**.
+
+```{r}
+#| label: Corte Transversal 
+#| warning: false
+#| echo: false
+
+# 1. Baixar os dados apenas de 2022
+mortesembatalha2022 <- WDI(country = "all",
+                           indicator = "VC.BTL.DETH",
+                           extra = TRUE,
+                           start = 2022,
+                           end = 2022)
+
+# 2. Limpar os dados: remover NAs, agregados e valores 0
+mortes2022_filtrado <- mortesembatalha2022 %>%
+  filter(!is.na(VC.BTL.DETH),             # remove países sem dados
+         VC.BTL.DETH > 0,                 # remove valores zero
+         !region %in% c("Aggregates")) %>% # remove regiões agregadas
+  mutate(cor = ifelse(country == "Ukraine", "Ukraine", "Outros"))  # cria coluna para cor
+
+# 3. Criar gráfico de barras sem nomes no eixo X
+grafico_barras <- ggplot(mortes2022_filtrado, aes(x = reorder(country, -VC.BTL.DETH), y = VC.BTL.DETH, fill = cor)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Ukraine" = "purple", "Outros" = "gray")) +
+  labs(title = "Mortes em batalhas por país em 2022",
+       x = "paises",
+       y = "Mortes em batalhas") +
+  theme_minimal() +
+  theme( plot.title      = element_text(size = 16, face = "bold", color = "#333333"),
+    axis.title      = element_text(size = 13, face = "bold"),
+    axis.text.x     = element_blank(),   # oculta os nomes dos países para não poluir
+    axis.text.y     = element_text(size = 11, color = "#444444"), 
+        axis.ticks.x = element_blank(),  # remove as marcas do eixo X
+        legend.position = "none")        # remove legenda
+
+# 4. Mostrar o gráfico
+print(grafico_barras)
+
+
+
+
+
+```
+
+## Série temporal
+
+Este gráfico de linha exibe a evolução das **mortes em batalhas no Afeganistão ao longo do tempo**, especificamente entre os anos de **1985 e 2022**. Ele permite observar tendências, picos e períodos de maior ou menor intensidade dos conflitos no país.
+
+-   **Final da década de 1980**: retirada da União Soviética (1989), com intensificação da violência.
+-   **Anos 1990**: guerra civil entre facções mujahideen e ascensão do Talibã.
+-   **2001**: invasão dos EUA após os ataques de 11 de setembro, seguida de anos de conflito com o Talibã.
+-   **Entre 2015 e 2021**: aumento dos combates com o Talibã e grupos extremistas como o Estado Islâmico.
+-   **2021-2022**: retirada das tropas americanas e retomada do poder pelo Talibã.
+
+```{r}
+#| label: Série Temporal 
+#| warning: false
+#| echo: false
+
+
+# 1. Baixar os dados do Afeganistão de 1985 a 2022
+mortesembatalhaAfghanistan <- WDI(
+  country = "AFG",
+  indicator = 'VC.BTL.DETH',
+  extra = TRUE,
+  start = 1985,
+  end = 2022
+)
+
+# 2. Remover valores inexistentes (NA)
+afg_limpos <- mortesembatalhaAfghanistan %>%
+  filter(!is.na(VC.BTL.DETH))
+
+# 3. Criar gráfico com estilo moderno (usando fontes do sistema)
+grafico_linha <- ggplot(afg_limpos, aes(x = year, y = VC.BTL.DETH)) +
+  geom_line(color = "purple", size = 1.3) +  # azul moderno
+  labs(title = "Mortes em batalhas no\nAfeganistão",
+       x = "Ano",
+       y = "Mortes em batalhas") +
+  theme_minimal(base_family = "sans") +  # usa uma fonte limpa do sistema
+  theme(
+    plot.title = element_text(size = 16, face = "bold", color = "#333333"),
+    axis.title = element_text(size = 13, face = "bold"),
+    axis.text = element_text(size = 11, color = "#444444"),
+    panel.grid.minor = element_blank()
+  )
+
+# 4. Mostrar o gráfico
+print(grafico_linha)
+
+```
