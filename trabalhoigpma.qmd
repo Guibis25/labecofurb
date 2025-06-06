@@ -1,0 +1,127 @@
+---
+title: "Gráfico IGP-M"
+author: "Guilherme Goedert"
+format: html
+editor: visual 
+---
+
+# **IGP_M**
+
+O **IGP-M (Índice Geral de Preços – Mercado)** é um dos principais índices de inflação do Brasil, calculado mensalmente pela **Fundação Getulio Vargas (FGV)**. Ele mede a variação de preços de uma cesta diversificada de bens e serviços, abrangendo desde o atacado até o varejo e a construção civil. O índice é composto por três subíndices:
+
+-   **IPA-M (Índice de Preços ao Produtor Amplo - Mercado) – 60% do IGP-M,** Mede os preços no atacado, com forte peso de commodities e insumos industriais.
+
+-   **IPC-M (Índice de Preços ao Consumidor - Mercado) – 30%,** Reflete a inflação para o consumidor final, semelhante ao IPCA.
+
+-   **INCC-M (Índice Nacional de Custo da Construção - Mercado) – 10%,** Captura variações nos custos de materiais e mão de obra da construção civil.
+
+# **Importância do IGP-M**
+
+O IGP-M tem grande relevância na economia brasileira por sua **ampla utilização prática**, apesar de não ser o índice oficial de metas de inflação (esse papel é do IPCA). Entre suas principais aplicações estão:
+
+-   Reajuste de aluguéis residenciais e comerciais.
+
+-   Atualização de **contratos de energia elétrica** (em algumas regiões).
+
+-   Base para **planos de saúde**, mensalidades escolares, seguros e outros contratos privados.
+
+-   Referência para produtos financeiros como **debêntures, CRIs e outros títulos indexados.**
+
+Sua ampla abrangência e maior sensibilidade a preços no atacado fazem com que ele **seja mais volátil** que o IPCA — podendo variar muito em curtos períodos, sobretudo em tempos de crise, choques cambiais ou valorização de commodities.
+
+# Análise Histórica do IGP-M (1989–2024)
+
+O gráfico animado gerado no R mostra a **evolução do IGP-M acumulado anualmente entre 1989 e 2024**. A partir da visualização, podemos destacar alguns momentos-chave:
+
+**Destaques históricos:**
+
+-   **Anos 1990–1994**: O IGP-M registrou altíssimos níveis de inflação, refletindo o contexto **pré-estabilização** e os efeitos de hiperinflação. Em 1994, com o lançamento do **Plano Real**, observa-se uma forte desaceleração do índice.
+
+-   **Década de 2000**: O índice se estabiliza em patamares mais baixos, variando entre **4% e 10% ao ano**, em linha com a estabilização macroeconômica e maior controle inflacionário.
+
+-   **2015–2016**: A crise econômica brasileira, com recessão, queda da confiança e desvalorização cambial, gera uma **aceleração moderada** do IGP-M.
+
+-   **2020–2021 (Pandemia da COVID-19)**: Esse período se destaca como um **pico de inflação IGP-M**, ultrapassando 20% ao ano. O motivo foi o aumento expressivo de preços no atacado (especialmente commodities e materiais de construção), a desvalorização do real e a disrupção nas cadeias de suprimento globais.
+
+-   **2022–2023**: Após esse choque inflacionário, o IGP-M passa por um processo de **desaceleração rápida**, chegando até a registrar **deflação** em alguns meses. Isso refletiu a normalização das cadeias de suprimentos, estabilização cambial e queda de preços de insumos no atacado.
+
+-   **2024 (projeções até o fim do ano)**: O índice parece seguir em patamar controlado, com variações modestas, acompanhando um cenário macroeconômico de **inflação sob controle**, juros ainda elevados e estabilidade nos preços internacionais.
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| label: load-packages
+#| include: false
+library(rbcb)
+library(tidyverse)
+library(lubridate)
+
+if (!requireNamespace("gganimate", quietly = TRUE)) {
+  install.packages("gganimate", repos = "https://cloud.r-project.org/")
+}
+library(gganimate)
+
+if (!requireNamespace("gifski", quietly = TRUE)) {
+  install.packages("gifski", repos = "https://cloud.r-project.org/")
+}
+library(gifski)
+```
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| label: grafico-igpm
+#| results: 'asis'
+
+library(ggplot2)
+library(gganimate)
+library(rbcb)
+library(tidyverse)
+library(lubridate)
+
+# Baixar dados mensais da Importação
+codigo_igpm <- 189
+igpm_mensal <- get_series(
+  codigo_igpm,
+  start_date = "1989-01-01",
+  end_date = "2024-12-31"
+) %>%
+  rename(data = date, valor = `189`) %>%
+  mutate(ano = year(data))
+
+# Calcular acumulado anual (somando as variações mensais)
+igpm_anual <- igpm_mensal %>%
+  group_by(ano) %>%
+  summarise(igpm_acumulado = sum(valor, na.rm = TRUE)) %>%
+  filter(ano <= 2024)
+
+# Criar gráfico animado
+grafico_igpm <- ggplot(igpm_anual, aes(x = ano, y = igpm_acumulado)) +
+  geom_line(color = "darkgreen", size = 1) +
+  geom_point(color = "darkgreen", size = 3) +
+  scale_x_continuous(breaks = seq(1989, 2024, by = 5)) +
+  scale_y_continuous(labels = scales::label_number(scale = 1e-6, suffix = " mi")) +
+  labs(
+    title = "Ipgm (1989–2024)",
+    x = "Ano",
+    y = "%"
+  ) +
+  theme_minimal() +
+  transition_reveal(ano)
+
+# Salvar como GIF
+anim_save("igpm_animado.gif", grafico_igpm, renderer = gifski_renderer())
+
+# Exibir no HTML
+cat('![](igpm_animado.gif)')
+```
+
+# Interpretação Final
+
+A análise histórica do IGP-M mostra que esse índice é **altamente sensível aos ciclos econômicos, choques externos e à variação cambial**, já que o IPA-M (com forte peso de commodities e produtos importados) influencia significativamente sua composição.
+
+Isso o torna **muito útil para o mercado**, mas também **mais instável** do que outros índices inflacionários. Para quem tem contratos indexados ao IGP-M (como aluguel), essa volatilidade pode significar reajustes inesperados – tanto positivos quanto negativos.
+
+No contexto atual, o IGP-M demonstra **comportamento mais previsível**, mas sua natureza cíclica sugere que **mudanças globais rápidas** ainda podem afetá-lo fortemente nos próximos anos.
